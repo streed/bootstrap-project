@@ -111,6 +111,13 @@ my_app_name/
 │   ├── cable.yml                       # Action Cable via Redis
 │   ├── sidekiq.yml                     # Queue configuration
 │   └── routes.rb                       # Routes with health checks
+├── spec/                               # RSpec test suite
+│   ├── requests/                       # Request (integration) specs
+│   ├── policies/                       # Pundit policy specs
+│   ├── services/                       # Service object specs
+│   ├── system/                         # Capybara system specs (optional)
+│   ├── factories/                      # FactoryBot factories
+│   └── support/                        # Test helpers and config
 ├── terraform/                          # Railway.com + Cloudflare deployment
 │   ├── providers.tf                    # Railway + Cloudflare providers
 │   ├── main.tf                         # Railway infrastructure
@@ -336,22 +343,71 @@ See `.env.example` for the full list. Key variables:
 
 ## Testing
 
-The generated project includes RSpec with supporting gems:
+### Included Specs
+
+The generator creates a full test suite out of the box:
+
+```
+spec/
+├── requests/
+│   ├── health_spec.rb              # Health endpoint tests (all 3 endpoints, success + failure)
+│   ├── authentication_spec.rb      # Devise sign-up, sign-in, sign-out, invalid credentials
+│   ├── home_spec.rb                # Root page (guest vs authenticated)
+│   └── sidekiq_web_spec.rb         # Admin-only access to /sidekiq
+├── policies/
+│   └── application_policy_spec.rb  # Guest, user, owner, admin permission matrix
+├── services/
+│   └── example_service_spec.rb     # dry-monads Success/Failure, contract validation
+├── support/
+│   ├── pundit.rb                   # Pundit matchers
+│   └── webmock.rb                  # Disable external HTTP
+├── factories/
+│   └── users.rb                    # User factory with :admin trait
+├── rails_helper.rb                 # Devise helpers, FactoryBot, Shoulda config
+└── spec_helper.rb                  # SimpleCov, RSpec config
+```
+
+### Running Tests
 
 ```bash
-# Run the test suite
+# Run the full suite
 bundle exec rspec
+
+# Run specific test types
+bundle exec rspec spec/requests
+bundle exec rspec spec/policies
+bundle exec rspec spec/services
 
 # With Docker
 docker compose exec web bundle exec rspec
 ```
 
-Included test libraries:
-- `rspec-rails` - Testing framework
-- `factory_bot_rails` - Test data factories
-- `faker` - Fake data generation
-- `shoulda-matchers` - One-liner model tests
-- `webmock` - HTTP request stubbing
-- `pundit-matchers` - Policy testing helpers
-- `stripe-ruby-mock` - Stripe API mocking
-- `simplecov` - Code coverage reporting
+### System Tests (Optional)
+
+System tests with Capybara are opt-in. To include them:
+
+```bash
+./generate.sh my_app --with-system-tests
+```
+
+This adds:
+- `capybara` and `selenium-webdriver` gems
+- Capybara config with headless Chrome (`spec/support/capybara.rb`)
+- System specs for home page and authentication flows (`spec/system/`)
+
+System tests require Chrome/Chromium to be installed. In Docker, you'll need to add Chrome to the `Dockerfile.dev` or run system tests outside the container.
+
+### Test Libraries
+
+| Gem | Purpose |
+|---|---|
+| `rspec-rails` | Testing framework |
+| `factory_bot_rails` | Test data factories |
+| `faker` | Fake data generation |
+| `shoulda-matchers` | One-liner model/controller matchers |
+| `webmock` | HTTP request stubbing |
+| `pundit-matchers` | Policy spec matchers (`permit_action`, `forbid_action`) |
+| `stripe-ruby-mock` | Stripe API mocking |
+| `simplecov` | Code coverage reporting |
+| `capybara` | Browser simulation (with `--with-system-tests`) |
+| `selenium-webdriver` | Chrome driver (with `--with-system-tests`) |

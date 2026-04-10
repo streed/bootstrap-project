@@ -39,14 +39,16 @@ Arguments:
   project-name    Name of the new Rails project (snake_case recommended)
 
 Options:
-  --path DIR      Directory to create the project in (default: current directory)
-  --skip-bundle   Skip running bundle install (useful for Docker-only workflows)
-  --help          Show this help message
+  --path DIR            Directory to create the project in (default: current directory)
+  --skip-bundle         Skip running bundle install (useful for Docker-only workflows)
+  --with-system-tests   Include Capybara system tests (adds selenium-webdriver, Capybara)
+  --help                Show this help message
 
 Examples:
   $(basename "$0") my_saas_app
   $(basename "$0") my_saas_app --path ~/projects
   $(basename "$0") my_saas_app --skip-bundle
+  $(basename "$0") my_saas_app --with-system-tests
 
 USAGE
   exit 0
@@ -58,11 +60,13 @@ USAGE
 PROJECT_NAME=""
 TARGET_DIR="."
 SKIP_BUNDLE=false
+WITH_SYSTEM_TESTS=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --path)    TARGET_DIR="$2"; shift 2 ;;
-    --skip-bundle) SKIP_BUNDLE=true; shift ;;
+    --path)              TARGET_DIR="$2"; shift 2 ;;
+    --skip-bundle)       SKIP_BUNDLE=true; shift ;;
+    --with-system-tests) WITH_SYSTEM_TESTS=true; shift ;;
     --help|-h) usage ;;
     -*)        log_error "Unknown option: $1"; usage ;;
     *)         PROJECT_NAME="$1"; shift ;;
@@ -213,6 +217,32 @@ cp "${TEMPLATES_DIR}/terraform/providers.tf"               terraform/providers.t
 cp "${TEMPLATES_DIR}/terraform/production.tfvars.example"  terraform/production.tfvars.example
 cp "${TEMPLATES_DIR}/terraform/cloudflare.tf"              terraform/cloudflare.tf
 
+# RSpec test suite
+mkdir -p spec/{requests,policies,services,support,factories}
+cp "${TEMPLATES_DIR}/spec/.rspec"                                .rspec
+cp "${TEMPLATES_DIR}/spec/spec_helper.rb"                        spec/spec_helper.rb
+cp "${TEMPLATES_DIR}/spec/rails_helper.rb"                       spec/rails_helper.rb
+cp "${TEMPLATES_DIR}/spec/support/pundit.rb"                     spec/support/pundit.rb
+cp "${TEMPLATES_DIR}/spec/support/webmock.rb"                    spec/support/webmock.rb
+cp "${TEMPLATES_DIR}/spec/factories/users.rb"                    spec/factories/users.rb
+cp "${TEMPLATES_DIR}/spec/requests/health_spec.rb"               spec/requests/health_spec.rb
+cp "${TEMPLATES_DIR}/spec/requests/authentication_spec.rb"       spec/requests/authentication_spec.rb
+cp "${TEMPLATES_DIR}/spec/requests/home_spec.rb"                 spec/requests/home_spec.rb
+cp "${TEMPLATES_DIR}/spec/requests/sidekiq_web_spec.rb"          spec/requests/sidekiq_web_spec.rb
+cp "${TEMPLATES_DIR}/spec/policies/application_policy_spec.rb"   spec/policies/application_policy_spec.rb
+cp "${TEMPLATES_DIR}/spec/services/example_service_spec.rb"      spec/services/example_service_spec.rb
+
+# Optional: Capybara system tests
+if $WITH_SYSTEM_TESTS; then
+  log_info "Including Capybara system tests..."
+  cat "${TEMPLATES_DIR}/Gemfile.system_tests" >> Gemfile
+  mkdir -p spec/system
+  cp "${TEMPLATES_DIR}/spec/support/capybara.rb"           spec/support/capybara.rb
+  cp "${TEMPLATES_DIR}/spec/system/home_spec.rb"           spec/system/home_spec.rb
+  cp "${TEMPLATES_DIR}/spec/system/authentication_spec.rb" spec/system/authentication_spec.rb
+  log_ok "System tests included."
+fi
+
 log_ok "Template files copied."
 
 #----------------------------------------------------------------------
@@ -332,6 +362,9 @@ if ! $SKIP_BUNDLE; then
   log_info "Running Pundit install..."
   bundle exec rails generate pundit:install 2>/dev/null || log_warn "Pundit install generator skipped."
 
+  log_info "Running RSpec install..."
+  bundle exec rails generate rspec:install 2>/dev/null || log_warn "RSpec install generator skipped."
+
   log_ok "Generators complete."
 fi
 
@@ -393,7 +426,8 @@ git commit -m "Initial commit: Rails 8 project with full stack setup
 - Health check endpoints
 - Docker Compose for local development
 - Terraform for Railway.com deployment
-- Cloudflare DNS, SSL, and CDN configuration"
+- Cloudflare DNS, SSL, and CDN configuration
+- RSpec test suite with request, policy, and service specs"
 
 log_ok "Git repository initialized."
 
