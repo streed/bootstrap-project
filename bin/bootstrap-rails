@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Wrapper that delegates to generate.sh in the parent directory.
+# This exists so the installed layout is:
+#   ~/.bootstrap-rails/bin/bootstrap-rails  (this file, symlinked into PATH)
+#   ~/.bootstrap-rails/templates/           (template files)
+#   ~/.bootstrap-rails/generate.sh          (actual logic)
+#   ~/.bootstrap-rails/VERSION              (version tracking)
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)"
+exec "${SCRIPT_DIR}/../generate.sh" "$@"

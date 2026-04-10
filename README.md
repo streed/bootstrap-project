@@ -1,6 +1,6 @@
-# Rails 8 Project Generator
+# bootstrap-rails
 
-A shell-based generator that scaffolds a production-ready Rails 8 project with batteries included.
+A CLI tool that scaffolds production-ready Rails 8 projects with batteries included.
 
 ## What You Get
 
@@ -20,33 +20,134 @@ A shell-based generator that scaffolds a production-ready Rails 8 project with b
 | Production | Docker multi-stage build |
 | DNS & CDN | Cloudflare (SSL, caching, redirects) |
 | Deployment | Terraform for Railway.com + Cloudflare |
+| Test Suite | RSpec request, policy, and service specs |
+
+## Installation
+
+### One-Line Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/streed/bootstrap-project/main/install.sh | bash
+```
+
+This installs to your home directory -- no `sudo` required:
+
+| What | Where |
+|---|---|
+| Source + templates | `~/.bootstrap-rails/` |
+| CLI symlink | `~/.local/bin/bootstrap-rails` |
+
+If `~/.local/bin` isn't in your PATH, the installer will tell you what to add to your shell profile.
+
+### From Source (Makefile)
+
+```bash
+git clone https://github.com/streed/bootstrap-project.git
+cd bootstrap-project
+make install
+```
+
+By default this links into `~/.local/bin`. To use a different prefix:
+
+```bash
+make install PREFIX=~    # puts binary in ~/bin
+```
+
+### Development (Symlink)
+
+If you're working on bootstrap-rails itself, symlink from your checkout so changes are reflected immediately:
+
+```bash
+git clone https://github.com/streed/bootstrap-project.git
+cd bootstrap-project
+make link
+```
+
+## Updating
+
+```bash
+bootstrap-rails --update
+```
+
+This pulls the latest version from GitHub and updates in place. Your generated projects are not affected.
+
+You can also update via Make if you cloned the repo:
+
+```bash
+cd bootstrap-project
+git pull
+make install
+```
+
+## Uninstalling
+
+```bash
+~/.bootstrap-rails/uninstall.sh
+```
+
+Or if installed via Make:
+
+```bash
+make uninstall
+```
+
+This removes `~/.bootstrap-rails/` and the CLI symlink. Nothing else is touched.
 
 ## Prerequisites
+
+To use the generator, you need:
 
 - Ruby 3.3+
 - Rails 8+
 - Node.js 20+
-- Docker & Docker Compose
+- Docker & Docker Compose (for local development)
 - Terraform 1.5+ (for deployment)
+
+## CLI Reference
+
+```
+bootstrap-rails <project-name> [options]
+bootstrap-rails --update
+bootstrap-rails --version
+```
+
+| Flag | Description |
+|---|---|
+| `--path DIR` | Create the project in a specific directory (default: `.`) |
+| `--skip-bundle` | Skip `bundle install` (Docker-only workflows) |
+| `--with-system-tests` | Include Capybara + Selenium system tests |
+| `--version`, `-v` | Print the installed version |
+| `--update` | Update to the latest version from GitHub |
+| `--help`, `-h` | Show usage information |
+
+| Environment Variable | Description |
+|---|---|
+| `BOOTSTRAP_RAILS_TEMPLATES` | Override the templates directory path |
 
 ## Quick Start
 
 ### Generate a New Project
 
 ```bash
-./generate.sh my_app_name
+bootstrap-rails my_app_name
 ```
 
 Or specify a target directory:
 
 ```bash
-./generate.sh my_app_name --path ~/projects
+bootstrap-rails my_app_name --path ~/projects
 ```
 
 Skip bundle install (useful for Docker-only workflows):
 
 ```bash
-./generate.sh my_app_name --skip-bundle
+bootstrap-rails my_app_name --skip-bundle
+```
+
+Include Capybara system tests:
+
+```bash
+bootstrap-rails my_app_name --with-system-tests
 ```
 
 ### Local Development with Docker (Recommended)
@@ -387,7 +488,7 @@ docker compose exec web bundle exec rspec
 System tests with Capybara are opt-in. To include them:
 
 ```bash
-./generate.sh my_app --with-system-tests
+bootstrap-rails my_app --with-system-tests
 ```
 
 This adds:

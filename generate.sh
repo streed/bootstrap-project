@@ -2,7 +2,7 @@
 set -euo pipefail
 
 #======================================================================
-# Rails 8 Project Generator
+# bootstrap-rails - Rails 8 Project Generator
 #
 # Generates a fully configured Rails 8 project with:
 #   - PostgreSQL + Redis
@@ -13,17 +13,65 @@ set -euo pipefail
 #   - Stimulus + Turbo (Hotwire)
 #   - Health check endpoints
 #   - Docker Compose for local dev (hot reload)
-#   - Terraform for Railway.com deployment
+#   - Terraform for Railway.com + Cloudflare deployment
+#   - RSpec test suite
 #======================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATES_DIR="${SCRIPT_DIR}/templates"
+BOOTSTRAP_RAILS_VERSION="$(cat "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")/../VERSION" 2>/dev/null || echo "dev")"
+
+# GitHub repository for updates
+GITHUB_REPO="streed/bootstrap-project"
+GITHUB_RAW_BASE="https://raw.githubusercontent.com/${GITHUB_REPO}"
+
+#----------------------------------------------------------------------
+# Resolve template directory
+#
+# Priority:
+#   1. BOOTSTRAP_RAILS_TEMPLATES env var (user override)
+#   2. Installed location: ~/.bootstrap-rails/templates
+#   3. Relative to this script: ../templates (repo checkout / Makefile install)
+#----------------------------------------------------------------------
+resolve_templates_dir() {
+  if [[ -n "${BOOTSTRAP_RAILS_TEMPLATES:-}" ]] && [[ -d "$BOOTSTRAP_RAILS_TEMPLATES" ]]; then
+    echo "$BOOTSTRAP_RAILS_TEMPLATES"
+    return
+  fi
+
+  local installed_dir="${HOME}/.bootstrap-rails/templates"
+  if [[ -d "$installed_dir" ]]; then
+    echo "$installed_dir"
+    return
+  fi
+
+  # Resolve the real path of this script (follow symlinks)
+  local script_path
+  script_path="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+  local script_dir
+  script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+
+  # Check for templates in parent dir (installed layout: bin/bootstrap-rails + templates/)
+  if [[ -d "${script_dir}/../templates" ]]; then
+    echo "$(cd "${script_dir}/../templates" && pwd)"
+    return
+  fi
+
+  # Check for templates next to script (repo layout: generate.sh + templates/)
+  if [[ -d "${script_dir}/templates" ]]; then
+    echo "${script_dir}/templates"
+    return
+  fi
+
+  echo ""
+}
+
+TEMPLATES_DIR="$(resolve_templates_dir)"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 log_info()  { echo -e "${BLUE}[INFO]${NC}  $1"; }
@@ -31,24 +79,98 @@ log_ok()    { echo -e "${GREEN}[OK]${NC}    $1"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+#----------------------------------------------------------------------
+# Commands: version, update, help
+#----------------------------------------------------------------------
+show_version() {
+  echo "bootstrap-rails ${BOOTSTRAP_RAILS_VERSION}"
+  exit 0
+}
+
+do_update() {
+  log_info "Checking for updates..."
+
+  if ! command -v git &>/dev/null; then
+    log_error "git is required for updates."
+    exit 1
+  fi
+
+  local install_dir="${HOME}/.bootstrap-rails"
+
+  if [[ -d "${install_dir}/.git" ]]; then
+    # Installed via git clone - just pull
+    log_info "Updating from GitHub (${GITHUB_REPO})..."
+    cd "$install_dir"
+    local old_version
+    old_version="$(cat VERSION 2>/dev/null || echo "unknown")"
+
+    git fetch origin main --quiet
+    git reset --hard origin/main --quiet
+
+    local new_version
+    new_version="$(cat VERSION 2>/dev/null || echo "unknown")"
+
+    if [[ "$old_version" == "$new_version" ]]; then
+      log_ok "Already up to date (v${new_version})."
+    else
+      log_ok "Updated: v${old_version} -> v${new_version}"
+    fi
+  elif [[ -d "$install_dir" ]]; then
+    # Installed via Makefile or manual copy - re-clone
+    log_warn "Current install was not from git. Re-installing from GitHub..."
+    local backup_dir="${install_dir}.backup.$(date +%s)"
+    mv "$install_dir" "$backup_dir"
+    log_info "Backed up existing install to ${backup_dir}"
+
+    git clone --depth 1 "https://github.com/${GITHUB_REPO}.git" "$install_dir" --quiet
+
+    # Re-link the binary
+    local bin_dir="${HOME}/.local/bin"
+    mkdir -p "$bin_dir"
+    ln -sf "${install_dir}/bin/bootstrap-rails" "${bin_dir}/bootstrap-rails"
+
+    local new_version
+    new_version="$(cat "${install_dir}/VERSION" 2>/dev/null || echo "unknown")"
+    log_ok "Re-installed v${new_version} from GitHub."
+    log_info "You can remove the backup: rm -rf ${backup_dir}"
+  else
+    log_error "bootstrap-rails is not installed at ${install_dir}."
+    log_info "Install first: curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPO}/main/install.sh | bash"
+    exit 1
+  fi
+
+  exit 0
+}
+
 usage() {
   cat <<USAGE
-Usage: $(basename "$0") <project-name> [options]
+${BOLD}bootstrap-rails${NC} v${BOOTSTRAP_RAILS_VERSION} - Rails 8 Project Generator
 
-Arguments:
-  project-name    Name of the new Rails project (snake_case recommended)
+${BOLD}USAGE${NC}
+  bootstrap-rails <project-name> [options]
+  bootstrap-rails --update
+  bootstrap-rails --version
 
-Options:
-  --path DIR            Directory to create the project in (default: current directory)
-  --skip-bundle         Skip running bundle install (useful for Docker-only workflows)
-  --with-system-tests   Include Capybara system tests (adds selenium-webdriver, Capybara)
-  --help                Show this help message
+${BOLD}ARGUMENTS${NC}
+  project-name            Name of the new Rails project (snake_case)
 
-Examples:
-  $(basename "$0") my_saas_app
-  $(basename "$0") my_saas_app --path ~/projects
-  $(basename "$0") my_saas_app --skip-bundle
-  $(basename "$0") my_saas_app --with-system-tests
+${BOLD}OPTIONS${NC}
+  --path DIR              Directory to create the project in (default: .)
+  --skip-bundle           Skip running bundle install (Docker-only workflows)
+  --with-system-tests     Include Capybara system tests (selenium + headless Chrome)
+  --version, -v           Show version
+  --update                Update to the latest version from GitHub
+  --help, -h              Show this help message
+
+${BOLD}EXAMPLES${NC}
+  bootstrap-rails my_saas_app
+  bootstrap-rails my_saas_app --path ~/projects
+  bootstrap-rails my_saas_app --skip-bundle
+  bootstrap-rails my_saas_app --with-system-tests
+  bootstrap-rails --update
+
+${BOLD}ENVIRONMENT${NC}
+  BOOTSTRAP_RAILS_TEMPLATES   Override the templates directory path
 
 USAGE
   exit 0
@@ -62,14 +184,21 @@ TARGET_DIR="."
 SKIP_BUNDLE=false
 WITH_SYSTEM_TESTS=false
 
+# Handle zero-args
+if [[ $# -eq 0 ]]; then
+  usage
+fi
+
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --version|-v)        show_version ;;
+    --update)            do_update ;;
     --path)              TARGET_DIR="$2"; shift 2 ;;
     --skip-bundle)       SKIP_BUNDLE=true; shift ;;
     --with-system-tests) WITH_SYSTEM_TESTS=true; shift ;;
-    --help|-h) usage ;;
-    -*)        log_error "Unknown option: $1"; usage ;;
-    *)         PROJECT_NAME="$1"; shift ;;
+    --help|-h)           usage ;;
+    -*)                  log_error "Unknown option: $1"; echo ""; usage ;;
+    *)                   PROJECT_NAME="$1"; shift ;;
   esac
 done
 
@@ -81,6 +210,19 @@ fi
 # Validate project name
 if [[ ! "$PROJECT_NAME" =~ ^[a-z][a-z0-9_]*$ ]]; then
   log_error "Project name must be snake_case (lowercase letters, numbers, underscores, starting with a letter)."
+  exit 1
+fi
+
+# Validate templates directory
+if [[ -z "$TEMPLATES_DIR" ]] || [[ ! -d "$TEMPLATES_DIR" ]]; then
+  log_error "Templates directory not found."
+  log_info "Expected at one of:"
+  log_info "  \$BOOTSTRAP_RAILS_TEMPLATES"
+  log_info "  ~/.bootstrap-rails/templates"
+  log_info "  $(dirname "${BASH_SOURCE[0]}")/templates"
+  log_info ""
+  log_info "Install bootstrap-rails first:"
+  log_info "  curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPO}/main/install.sh | bash"
   exit 1
 fi
 
@@ -101,6 +243,7 @@ check_command() {
   fi
 }
 
+log_info "bootstrap-rails v${BOOTSTRAP_RAILS_VERSION}"
 log_info "Checking prerequisites..."
 check_command ruby
 check_command rails
@@ -148,6 +291,12 @@ log_ok "Rails project generated at ${PROJECT_PATH}"
 log_info "Updating Gemfile with project dependencies..."
 
 cat "${TEMPLATES_DIR}/Gemfile.append" >> Gemfile
+
+# Optional: Capybara system tests
+if $WITH_SYSTEM_TESTS; then
+  log_info "Including Capybara system test gems..."
+  cat "${TEMPLATES_DIR}/Gemfile.system_tests" >> Gemfile
+fi
 
 if ! $SKIP_BUNDLE; then
   log_info "Running bundle install..."
@@ -234,8 +383,7 @@ cp "${TEMPLATES_DIR}/spec/services/example_service_spec.rb"      spec/services/e
 
 # Optional: Capybara system tests
 if $WITH_SYSTEM_TESTS; then
-  log_info "Including Capybara system tests..."
-  cat "${TEMPLATES_DIR}/Gemfile.system_tests" >> Gemfile
+  log_info "Including Capybara system test files..."
   mkdir -p spec/system
   cp "${TEMPLATES_DIR}/spec/support/capybara.rb"           spec/support/capybara.rb
   cp "${TEMPLATES_DIR}/spec/system/home_spec.rb"           spec/system/home_spec.rb
@@ -416,6 +564,8 @@ log_info "Initializing git repository..."
 git init
 git add -A
 git commit -m "Initial commit: Rails 8 project with full stack setup
+
+Generated with bootstrap-rails v${BOOTSTRAP_RAILS_VERSION}
 
 - PostgreSQL + Redis
 - Sidekiq for background jobs
