@@ -22,3 +22,9 @@ stripe_webhook_secret  = ""
 web_replicas     = 1
 sidekiq_replicas = 1
 region           = "us-west1"
+
+# Cloudflare
+# Create an API token at https://dash.cloudflare.com/profile/api-tokens
+# Required permissions: Zone:DNS:Edit, Zone:Zone:Read, Zone:Zone Settings:Edit
+cloudflare_api_token = ""
+cloudflare_domain    = "example.com"

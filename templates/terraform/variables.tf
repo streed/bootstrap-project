@@ -103,3 +103,18 @@ variable "region" {
   type        = string
   default     = "us-west1"
 }
+
+# ==============================================================================
+# Cloudflare Configuration
+# ==============================================================================
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token (Zone:DNS:Edit, Zone:Zone:Read, Zone:Zone Settings:Edit)"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_domain" {
+  description = "Root domain managed in Cloudflare (e.g., example.com)"
+  type        = string
+}

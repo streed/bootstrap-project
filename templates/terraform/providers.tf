@@ -6,6 +6,10 @@ terraform {
       source  = "terraform-community-providers/railway"
       version = "~> 0.6"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
   }
 
   # Uncomment to use remote state (recommended for teams)
@@ -18,4 +22,8 @@ terraform {
 
 provider "railway" {
   token = var.railway_api_token
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
 }

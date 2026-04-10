@@ -41,3 +41,22 @@ output "redis_proxy_port" {
   description = "External TCP proxy port for Redis"
   value       = railway_tcp_proxy.redis.proxy_port
 }
+
+# ==============================================================================
+# Cloudflare Outputs
+# ==============================================================================
+
+output "cloudflare_zone_id" {
+  description = "Cloudflare zone ID"
+  value       = data.cloudflare_zone.main.id
+}
+
+output "custom_domain" {
+  description = "Custom domain (Cloudflare)"
+  value       = var.cloudflare_domain
+}
+
+output "custom_domain_url" {
+  description = "Full URL for the custom domain"
+  value       = "https://${var.cloudflare_domain}"
+}

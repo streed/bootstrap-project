@@ -211,6 +211,7 @@ cp "${TEMPLATES_DIR}/terraform/variables.tf"               terraform/variables.t
 cp "${TEMPLATES_DIR}/terraform/outputs.tf"                 terraform/outputs.tf
 cp "${TEMPLATES_DIR}/terraform/providers.tf"               terraform/providers.tf
 cp "${TEMPLATES_DIR}/terraform/production.tfvars.example"  terraform/production.tfvars.example
+cp "${TEMPLATES_DIR}/terraform/cloudflare.tf"              terraform/cloudflare.tf
 
 log_ok "Template files copied."
 
@@ -391,7 +392,8 @@ git commit -m "Initial commit: Rails 8 project with full stack setup
 - Stimulus + Turbo (Hotwire)
 - Health check endpoints
 - Docker Compose for local development
-- Terraform for Railway.com deployment"
+- Terraform for Railway.com deployment
+- Cloudflare DNS, SSL, and CDN configuration"
 
 log_ok "Git repository initialized."
 

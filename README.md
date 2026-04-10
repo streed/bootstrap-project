@@ -18,7 +18,8 @@ A shell-based generator that scaffolds a production-ready Rails 8 project with b
 | Health Checks | `/health`, `/health/db`, `/health/redis` |
 | Local Dev | Docker Compose with hot code reload |
 | Production | Docker multi-stage build |
-| Deployment | Terraform for Railway.com |
+| DNS & CDN | Cloudflare (SSL, caching, redirects) |
+| Deployment | Terraform for Railway.com + Cloudflare |
 
 ## Prerequisites
 
@@ -110,9 +111,10 @@ my_app_name/
 │   ├── cable.yml                       # Action Cable via Redis
 │   ├── sidekiq.yml                     # Queue configuration
 │   └── routes.rb                       # Routes with health checks
-├── terraform/                          # Railway.com deployment
-│   ├── providers.tf
-│   ├── main.tf
+├── terraform/                          # Railway.com + Cloudflare deployment
+│   ├── providers.tf                    # Railway + Cloudflare providers
+│   ├── main.tf                         # Railway infrastructure
+│   ├── cloudflare.tf                   # DNS, SSL, CDN, caching rules
 │   ├── variables.tf
 │   └── outputs.tf
 ├── Dockerfile                          # Production multi-stage build
@@ -236,13 +238,26 @@ STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-## Deployment to Railway.com
+## Deployment to Railway.com + Cloudflare
 
 ### Prerequisites
 
 1. A Railway account with an API token
-2. Terraform 1.5+
-3. Your Docker image pushed to a container registry
+2. A Cloudflare account with your domain's nameservers pointed to Cloudflare
+3. Terraform 1.5+
+4. Your Docker image pushed to a container registry
+
+### Cloudflare API Token
+
+Create an API token at [Cloudflare Dashboard > Profile > API Tokens](https://dash.cloudflare.com/profile/api-tokens) with these permissions:
+
+| Permission | Access |
+|---|---|
+| Zone > DNS | Edit |
+| Zone > Zone | Read |
+| Zone > Zone Settings | Edit |
+
+Scope the token to your specific zone (domain).
 
 ### Deploy
 
@@ -259,6 +274,8 @@ secret_key_base     = "your-secret-key-base"
 stripe_secret_key   = "sk_live_..."
 stripe_publishable_key = "pk_live_..."
 stripe_webhook_secret  = "whsec_..."
+cloudflare_api_token   = "your-cloudflare-token"
+cloudflare_domain      = "example.com"
 EOF
 
 terraform init
@@ -270,11 +287,20 @@ After Terraform creates the infrastructure, configure environment variables in t
 
 ### Infrastructure Created
 
+**Railway:**
 - **Railway Project** with a default environment
 - **Web Service** - Rails app from your Docker image with a generated domain
 - **Sidekiq Service** - Background worker from the same Docker image
 - **PostgreSQL** - Database with TCP proxy for external access
 - **Redis** - Cache and queue store with TCP proxy
+
+**Cloudflare:**
+- **DNS Records** - CNAME for apex and `www` pointing to Railway domain
+- **SSL/TLS** - Full mode with minimum TLS 1.2, always-use-HTTPS
+- **www Redirect** - 301 redirect from `www.example.com` to `example.com`
+- **Cache Rules** - Aggressive caching for static assets (30 days), cache bypass for `/health`, auth routes, and `/sidekiq`
+- **Performance** - Brotli compression, Early Hints, HTTP/3 enabled
+- **Security** - Browser integrity check, medium security level
 
 ## Docker Details
 
