@@ -2,6 +2,32 @@
 
 A CLI tool that scaffolds production-ready Rails 8 projects with batteries included.
 
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/streed/bootstrap-project/main/install.sh | bash
+```
+
+Then generate a project:
+
+```bash
+bootstrap-rails my_app
+```
+
+That's it. Everything installs to `~/.bootstrap-rails/` with a symlink in `~/.local/bin/` -- no `sudo` needed. If `~/.local/bin` isn't in your PATH, the installer will print what to add to your shell profile.
+
+### Update
+
+```bash
+bootstrap-rails --update
+```
+
+### Uninstall
+
+```bash
+~/.bootstrap-rails/uninstall.sh
+```
+
 ## What You Get
 
 | Component | Technology |
@@ -22,80 +48,7 @@ A CLI tool that scaffolds production-ready Rails 8 projects with batteries inclu
 | Deployment | Terraform for Railway.com + Cloudflare |
 | Test Suite | RSpec request, policy, and service specs |
 
-## Installation
-
-### One-Line Install (Recommended)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/streed/bootstrap-project/main/install.sh | bash
-```
-
-This installs to your home directory -- no `sudo` required:
-
-| What | Where |
-|---|---|
-| Source + templates | `~/.bootstrap-rails/` |
-| CLI symlink | `~/.local/bin/bootstrap-rails` |
-
-If `~/.local/bin` isn't in your PATH, the installer will tell you what to add to your shell profile.
-
-### From Source (Makefile)
-
-```bash
-git clone https://github.com/streed/bootstrap-project.git
-cd bootstrap-project
-make install
-```
-
-By default this links into `~/.local/bin`. To use a different prefix:
-
-```bash
-make install PREFIX=~    # puts binary in ~/bin
-```
-
-### Development (Symlink)
-
-If you're working on bootstrap-rails itself, symlink from your checkout so changes are reflected immediately:
-
-```bash
-git clone https://github.com/streed/bootstrap-project.git
-cd bootstrap-project
-make link
-```
-
-## Updating
-
-```bash
-bootstrap-rails --update
-```
-
-This pulls the latest version from GitHub and updates in place. Your generated projects are not affected.
-
-You can also update via Make if you cloned the repo:
-
-```bash
-cd bootstrap-project
-git pull
-make install
-```
-
-## Uninstalling
-
-```bash
-~/.bootstrap-rails/uninstall.sh
-```
-
-Or if installed via Make:
-
-```bash
-make uninstall
-```
-
-This removes `~/.bootstrap-rails/` and the CLI symlink. Nothing else is touched.
-
 ## Prerequisites
-
-To use the generator, you need:
 
 - Ruby 3.3+
 - Rails 8+
@@ -103,12 +56,10 @@ To use the generator, you need:
 - Docker & Docker Compose (for local development)
 - Terraform 1.5+ (for deployment)
 
-## CLI Reference
+## Usage
 
-```
+```bash
 bootstrap-rails <project-name> [options]
-bootstrap-rails --update
-bootstrap-rails --version
 ```
 
 | Flag | Description |
@@ -120,34 +71,39 @@ bootstrap-rails --version
 | `--update` | Update to the latest version from GitHub |
 | `--help`, `-h` | Show usage information |
 
-| Environment Variable | Description |
-|---|---|
-| `BOOTSTRAP_RAILS_TEMPLATES` | Override the templates directory path |
+```bash
+# Generate in a specific directory
+bootstrap-rails my_app --path ~/projects
+
+# Skip bundle (build in Docker instead)
+bootstrap-rails my_app --skip-bundle
+
+# Include Capybara browser tests
+bootstrap-rails my_app --with-system-tests
+```
 
 ## Quick Start
 
-### Generate a New Project
+### Docker (Recommended)
 
 ```bash
-bootstrap-rails my_app_name
+bootstrap-rails my_app
+cd my_app
+cp .env.example .env       # edit with your settings
+docker compose up --build
 ```
 
-Or specify a target directory:
+Your app is running at `http://localhost:3000` with hot code reload, PostgreSQL, Redis, and Sidekiq.
+
+### Without Docker
 
 ```bash
-bootstrap-rails my_app_name --path ~/projects
-```
-
-Skip bundle install (useful for Docker-only workflows):
-
-```bash
-bootstrap-rails my_app_name --skip-bundle
-```
-
-Include Capybara system tests:
-
-```bash
-bootstrap-rails my_app_name --with-system-tests
+bootstrap-rails my_app
+cd my_app
+cp .env.example .env       # point to local Postgres/Redis
+bundle install
+rails db:create db:migrate
+bin/dev
 ```
 
 ### Local Development with Docker (Recommended)
@@ -512,3 +468,32 @@ System tests require Chrome/Chromium to be installed. In Docker, you'll need to 
 | `simplecov` | Code coverage reporting |
 | `capybara` | Browser simulation (with `--with-system-tests`) |
 | `selenium-webdriver` | Chrome driver (with `--with-system-tests`) |
+
+## Alternative Install Methods
+
+### From Source (Makefile)
+
+```bash
+git clone https://github.com/streed/bootstrap-project.git
+cd bootstrap-project
+make install
+```
+
+### For Contributors
+
+Symlink from your checkout so edits are reflected immediately:
+
+```bash
+git clone https://github.com/streed/bootstrap-project.git
+cd bootstrap-project
+make link    # symlinks into ~/.local/bin
+```
+
+### Environment Override
+
+Point to a custom templates directory:
+
+```bash
+export BOOTSTRAP_RAILS_TEMPLATES=/path/to/my/templates
+bootstrap-rails my_app
+```
