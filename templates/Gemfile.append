@@ -1,0 +1,40 @@
+
+# ---------- Authentication & Authorization ----------
+gem "devise", "~> 4.9"
+gem "pundit", "~> 2.4"
+
+# ---------- Background Jobs ----------
+gem "sidekiq", "~> 7.3"
+
+# ---------- Payments ----------
+gem "stripe", "~> 13.0"
+
+# ---------- dry-rb (Service Layer) ----------
+gem "dry-monads", "~> 1.6"
+gem "dry-validation", "~> 1.10"
+gem "dry-struct", "~> 1.6"
+gem "dry-types", "~> 1.7"
+gem "dry-initializer", "~> 3.1"
+
+# ---------- Health Check ----------
+gem "redis", "~> 5.0"
+
+# ---------- HTTP Client ----------
+gem "faraday", "~> 2.12"
+
+group :development, :test do
+  gem "rspec-rails", "~> 7.0"
+  gem "factory_bot_rails", "~> 6.4"
+  gem "faker", "~> 3.5"
+  gem "dotenv-rails", "~> 3.1"
+  gem "rubocop-rails", "~> 2.27", require: false
+  gem "rubocop-rspec", "~> 3.0", require: false
+end
+
+group :test do
+  gem "shoulda-matchers", "~> 6.4"
+  gem "webmock", "~> 3.24"
+  gem "simplecov", "~> 0.22", require: false
+  gem "pundit-matchers", "~> 3.1"
+  gem "stripe-ruby-mock", "~> 4.0", require: "stripe_mock"
+end
