@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+# If running the rails server, prepare the database
+if [ "${1}" == "./bin/rails" ] && [ "${2}" == "server" ]; then
+  echo "Preparing database..."
+  ./bin/rails db:prepare
+fi
+
+exec "${@}"

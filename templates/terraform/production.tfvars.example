@@ -1,0 +1,30 @@
+# Copy this file to production.tfvars and fill in your values.
+# NEVER commit production.tfvars to version control.
+
+railway_api_token = ""
+project_name      = "my-rails-app"
+
+# Docker image - push your app to a container registry first
+docker_image             = "ghcr.io/your-org/your-app:latest"
+docker_registry_username = ""
+docker_registry_password = ""
+
+# Rails secrets (generate with: rails secret)
+rails_master_key = ""
+secret_key_base  = ""
+
+# Stripe
+stripe_publishable_key = ""
+stripe_secret_key      = ""
+stripe_webhook_secret  = ""
+
+# Sizing
+web_replicas     = 1
+sidekiq_replicas = 1
+region           = "us-west1"
+
+# Cloudflare
+# Create an API token at https://dash.cloudflare.com/profile/api-tokens
+# Required permissions: Zone:DNS:Edit, Zone:Zone:Read, Zone:Zone Settings:Edit
+cloudflare_api_token = ""
+cloudflare_domain    = "example.com"

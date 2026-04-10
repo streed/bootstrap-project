@@ -1,0 +1,109 @@
+# ======================================================================
+# Docker Compose for Local Development
+# Hot code reloading via volume mounts
+# ======================================================================
+
+services:
+  # ---------- Rails Application ----------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0 -p 3000"
+    volumes:
+      - .:/rails
+      - bundle_cache:/usr/local/bundle
+      - node_modules:/rails/node_modules
+      - rails_cache:/rails/tmp/cache
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - RAILS_ENV=development
+      - POSTGRES_HOST=postgres
+      - REDIS_URL=redis://redis:6379/0
+      - WEBPACKER_DEV_SERVER_HOST=0.0.0.0
+      - BINDING=0.0.0.0
+      - HISTFILE=/rails/log/.bash_history
+    stdin_open: true
+    tty: true
+
+  # ---------- Sidekiq Worker ----------
+  sidekiq:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    volumes:
+      - .:/rails
+      - bundle_cache:/usr/local/bundle
+      - node_modules:/rails/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - RAILS_ENV=development
+      - POSTGRES_HOST=postgres
+      - REDIS_URL=redis://redis:6379/0
+
+  # ---------- CSS/JS Build Watcher ----------
+  assets:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: yarn build --watch
+    volumes:
+      - .:/rails
+      - node_modules:/rails/node_modules
+    env_file:
+      - .env
+    environment:
+      - RAILS_ENV=development
+
+  # ---------- PostgreSQL ----------
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-app_development}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Redis ----------
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  bundle_cache:
+  node_modules:
+  rails_cache:

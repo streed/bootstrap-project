@@ -1,0 +1,4 @@
+
+# ---------- System Tests (Capybara) ----------
+gem "capybara", "~> 3.40", group: :test
+gem "selenium-webdriver", "~> 4.25", group: :test
